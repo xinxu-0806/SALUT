@@ -29,8 +29,6 @@ Without an argument, the script uses `data2/bcsstm37/bcsstm37.mtx`.
 ./scripts/run_hls_synth.sh
 ```
 
-The TAPA hardware object is generated under `build/fpga/`. Override
-`CLOCK_PERIOD` (default `8.0`, ns) and `JOBS` (default `12`) as needed.
 
 ## Hardware emulation
 
