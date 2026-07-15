@@ -29,7 +29,6 @@ Without an argument, the script uses `data2/bcsstm37/bcsstm37.mtx`.
 ./scripts/run_hls_synth.sh
 ```
 
-
 ## Hardware emulation
 
 ```bash
