@@ -1,0 +1,48 @@
+%% --------------------------------------------------
+%% 图 1：稀疏 LU 分解加速器 - 顶层系统架构
+%% --------------------------------------------------
+graph TD
+    %% 外部模块
+    CPU[<b>主机 CPU</b>]
+    HBM[<b>HBM 内存通道</b><br/>(A, L, U)]
+
+    %% FPGA 内部（一个大框）
+    subgraph FPGA Accelerator
+        %% 1. 全局控制单元
+        GCU[<b>① 全局控制单元 (GCU)</b><br/>包含: MetaLoader, DegScheduler, ColDoneMux]
+        
+        %% 2. HBM 接口
+        HBM_SS[<b>② HBM 内存子系统</b><br/>包含: HBM_Read_Service, HBM_Write_Service]
+
+        %% 3. 共享缓存
+        CACHE[<b>③ 共享 L/U 缓存</b><br/>包含: GlobalLUCache]
+
+        %% 4. 计算阵列
+        COMPUTE_ARRAY[<b>④ 计算核心阵列</b><br/>包含: WorkDistributor, SPU (PE+Poster) x N]
+    end
+
+    %% 定义连接
+    %% 外部连接
+    CPU -- "META (任务图)" --> GCU
+    HBM <== "A, L, U 数据" ==> HBM_SS
+
+    %% 内部连接
+    %% 关键的图驱动反馈循环 (高亮)
+    GCU -- "<b>ReadySeg (任务流)</b>" --> COMPUTE_ARRAY
+    COMPUTE_ARRAY -- "<b>col_done (完成反馈)</b>" --> GCU
+
+    %% HBM 数据通路
+    COMPUTE_ARRAY -- "HBM 读/写请求 (A, L, U)" --> HBM_SS
+    HBM_SS -- "HBM 读数据 / 写确认" --> COMPUTE_ARRAY
+
+    %% 缓存通路
+    COMPUTE_ARRAY -- "L/U 缓存请求" --> CACHE
+    CACHE -- "L/U 缓存响应" --> COMPUTE_ARRAY
+    
+    %% 样式
+    style GCU fill:#e6f3ff,stroke:#333,stroke-width:2px
+    style HBM_SS fill:#e6f3ff,stroke:#333,stroke-width:2px
+    style CACHE fill:#e6f3ff,stroke:#333,stroke-width:2px
+    style COMPUTE_ARRAY fill:#e6f3ff,stroke:#333,stroke-width:2px
+    linkStyle 1,2,3,4,5,6 stroke-width:2px
+    linkStyle 1,2 stroke:#007bff,color:#007bff,font-weight:bold
