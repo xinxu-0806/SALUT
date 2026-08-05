@@ -4,6 +4,21 @@ SALUT is an HBM-based FPGA accelerator for sparse LU factorization. This
 repository contains the TAPA kernel, host program, preprocessing code, matrix
 inputs, and reproducible flows for simulation and hardware builds.
 
+## Paper
+
+[SALUT: Efficient Sparse LU Factorization via Asynchronous Task Triggering on HBM FPGAs](paper/SALUT.pdf)
+
+If you find this work useful, please cite:
+
+```bibtex
+@inproceedings{salutdac26,
+  author = {Xu, Xin and Wu, Zhenhua and Niu, Dan and Jin, Zhou and Zhuo, Cheng},
+  booktitle = {63rd ACM/IEEE Design Automation Conference (DAC 2026)},
+  title = {SALUT: Efficient Sparse LU Factorization via Asynchronous Task Triggering on HBM FPGAs},
+  year = {2026}
+}
+```
+
 ## Requirements
 
 - TAPA
