@@ -1,5 +1,7 @@
 # SALUT
 
+> **DAC 2026** — 63rd ACM/IEEE Design Automation Conference
+
 SALUT is an HBM-based FPGA accelerator for sparse LU factorization. This
 repository contains the TAPA kernel, host program, preprocessing code, matrix
 inputs, and reproducible flows for simulation and hardware builds.
