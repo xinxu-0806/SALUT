@@ -4,7 +4,7 @@ set -euo pipefail
 
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/common_env.sh"
 
-clock_period="${CLOCK_PERIOD:-8.0}"
+clock_period="${CLOCK_PERIOD:-4.0}"
 jobs="${JOBS:-12}"
 work_dir="$FPGA_DIR/${TOP_FUNCTION}_${PLATFORM}.tapa_work"
 log_file="$FPGA_DIR/tapa_compile_output.log"
