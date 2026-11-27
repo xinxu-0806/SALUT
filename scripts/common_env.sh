@@ -4,9 +4,9 @@
 SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 REPO_ROOT=$(cd "$SCRIPT_DIR/.." && pwd)
 
-export TAPA_ROOT="${TAPA_ROOT:-/home/xxu/.rapidstream-tapa}"
-export XILINX_VITIS="${XILINX_VITIS:-/data/xxu/Xilinx/Vitis/2022.2}"
-export XILINX_VITIS_HLS="${XILINX_VITIS_HLS:-/data/xxu/Xilinx/Vitis_HLS/2022.2}"
+export TAPA_ROOT="${TAPA_ROOT:-$HOME/.rapidstream-tapa}"
+export XILINX_VITIS="${XILINX_VITIS:-/tools/Xilinx/Vitis/2022.2}"
+export XILINX_VITIS_HLS="${XILINX_VITIS_HLS:-/tools/Xilinx/Vitis_HLS/2022.2}"
 export XILINX_XRT="${XILINX_XRT:-/opt/xilinx/xrt}"
 
 if [[ -f "$XILINX_VITIS/settings64.sh" ]]; then

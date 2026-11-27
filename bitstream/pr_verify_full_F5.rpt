@@ -1,0 +1,22 @@
+Command: pr_verify -full_check -in_memory -additional build/fpga/banked-lu-dispatch-bram.kpvu1VPp/physical_audits/baseline-shell-readonly.full-static-tklyvjwp/original_locked_shell_copy.dcp -file build/fpga/banked-lu-dispatch-bram.kpvu1VPp/physical_audits/v721-FinalGates150.Lqeb1F4S/pr_verify_full_F5.rpt
+Fri Nov 27 01:09:19 2026
+
+INFO: [Constraints 18-1020] PR Verify Summary:
+DCP1: in-memory-design
+  Number of reconfigurable modules compared = 1
+  Number of partition pins compared         = 261
+  Number of static tiles compared           = 981198
+  Number of static sites compared           = 19594
+  Number of static cells compared           = 277885
+  Number of static routed nodes compared    = 4679464
+  Number of static routed pips compared     = 4441556
+
+DCP2: build/fpga/banked-lu-dispatch-bram.kpvu1VPp/physical_audits/baseline-shell-readonly.full-static-tklyvjwp/original_locked_shell_copy.dcp
+  Number of reconfigurable modules compared = 1
+  Number of partition pins compared         = 261
+  Number of static tiles compared           = 981198
+  Number of static sites compared           = 19594
+  Number of static cells compared           = 277885
+  Number of static routed nodes compared    = 4679464
+  Number of static routed pips compared     = 4441556
+INFO: [Vivado 12-3253] PR_VERIFY: check points in-memory-design and build/fpga/banked-lu-dispatch-bram.kpvu1VPp/physical_audits/baseline-shell-readonly.full-static-tklyvjwp/original_locked_shell_copy.dcp are compatible

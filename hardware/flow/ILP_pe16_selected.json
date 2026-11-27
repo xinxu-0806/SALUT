@@ -1,0 +1,555 @@
+{
+ "accepted": false,
+ "assignment": {
+  "ParallelAckDemux_0": "SLR2",
+  "ParallelColumnFront_0": "SLR2",
+  "ParallelColumnFront_1": "SLR1",
+  "ParallelColumnFront_2": "SLR2",
+  "ParallelColumnFront_3": "SLR2",
+  "ParallelColumnFront_4": "SLR2",
+  "ParallelColumnFront_5": "SLR2",
+  "ParallelColumnFront_6": "SLR2",
+  "ParallelColumnFront_7": "SLR2",
+  "ParallelDegreeStore_0": "SLR1",
+  "ParallelFrontAllocationUnit_0": "SLR2",
+  "ParallelFrontDoneMux_0": "SLR2",
+  "ParallelFrontEmitter_0": "SLR2",
+  "ParallelPegAckDemux_0": "SLR2",
+  "ParallelPivotReadGate_0": "SLR2",
+  "ParallelScheduler_0": "SLR1",
+  "ParallelSegDoneMux_0": "SLR2",
+  "ParallelSegmentEmitter_0": "SLR2",
+  "ParallelSegmentPE_0": "SLR2",
+  "ParallelSegmentPE_1": "SLR2",
+  "ParallelSegmentPE_10": "SLR2",
+  "ParallelSegmentPE_11": "SLR2",
+  "ParallelSegmentPE_12": "SLR2",
+  "ParallelSegmentPE_13": "SLR2",
+  "ParallelSegmentPE_14": "SLR2",
+  "ParallelSegmentPE_15": "SLR2",
+  "ParallelSegmentPE_2": "SLR2",
+  "ParallelSegmentPE_3": "SLR2",
+  "ParallelSegmentPE_4": "SLR2",
+  "ParallelSegmentPE_5": "SLR2",
+  "ParallelSegmentPE_6": "SLR2",
+  "ParallelSegmentPE_7": "SLR2",
+  "ParallelSegmentPE_8": "SLR2",
+  "ParallelSegmentPE_9": "SLR2",
+  "ParallelTaskAllocationUnit_0": "SLR2",
+  "SalutABurstAdapter_0": "SLR0",
+  "SalutABurstAdapter_1": "SLR1",
+  "SalutABurstAdapter_2": "SLR1",
+  "SalutABurstAdapter_3": "SLR1",
+  "SalutABurstAdapter_4": "SLR1",
+  "SalutABurstAdapter_5": "SLR0",
+  "SalutABurstAdapter_6": "SLR0",
+  "SalutABurstAdapter_7": "SLR0",
+  "SalutAckClientAdapter_0": "SLR1",
+  "SalutCompletionFanout_0": "SLR2",
+  "SalutFrontReadSource_0": "SLR2",
+  "SalutFrontReadSource_1": "SLR1",
+  "SalutFrontReadSource_2": "SLR2",
+  "SalutFrontReadSource_3": "SLR2",
+  "SalutFrontReadSource_4": "SLR2",
+  "SalutFrontReadSource_5": "SLR2",
+  "SalutFrontReadSource_6": "SLR2",
+  "SalutFrontReadSource_7": "SLR2",
+  "SalutFrontWriteSource_0": "SLR2",
+  "SalutFrontWriteSource_1": "SLR2",
+  "SalutFrontWriteSource_2": "SLR2",
+  "SalutFrontWriteSource_3": "SLR2",
+  "SalutFrontWriteSource_4": "SLR2",
+  "SalutFrontWriteSource_5": "SLR2",
+  "SalutFrontWriteSource_6": "SLR2",
+  "SalutFrontWriteSource_7": "SLR2",
+  "SalutHBMReadWordPort_0": "SLR0",
+  "SalutHBMReadWordPort_1": "SLR0",
+  "SalutHBMReadWordPort_2": "SLR0",
+  "SalutHBMReadWordPort_3": "SLR0",
+  "SalutHBMReadWordPort_4": "SLR0",
+  "SalutHBMReadWordPort_5": "SLR0",
+  "SalutHBMReadWordPort_6": "SLR0",
+  "SalutHBMReadWordPort_7": "SLR0",
+  "SalutHBMWordPort_0": "SLR0",
+  "SalutHBMWordPort_1": "SLR0",
+  "SalutHBMWordPort_10": "SLR0",
+  "SalutHBMWordPort_11": "SLR0",
+  "SalutHBMWordPort_12": "SLR0",
+  "SalutHBMWordPort_13": "SLR0",
+  "SalutHBMWordPort_14": "SLR0",
+  "SalutHBMWordPort_15": "SLR0",
+  "SalutHBMWordPort_2": "SLR0",
+  "SalutHBMWordPort_3": "SLR0",
+  "SalutHBMWordPort_4": "SLR0",
+  "SalutHBMWordPort_5": "SLR0",
+  "SalutHBMWordPort_6": "SLR0",
+  "SalutHBMWordPort_7": "SLR0",
+  "SalutHBMWordPort_8": "SLR0",
+  "SalutHBMWordPort_9": "SLR0",
+  "SalutLMLane_0": "SLR2",
+  "SalutLMLane_1": "SLR2",
+  "SalutLMLane_2": "SLR2",
+  "SalutLMLane_3": "SLR2",
+  "SalutLMLane_4": "SLR2",
+  "SalutLMLane_5": "SLR2",
+  "SalutLMLane_6": "SLR2",
+  "SalutLMLane_7": "SLR2",
+  "SalutMemoryDrainJoin_0": "SLR1",
+  "SalutPegWriteFork_0": "SLR2",
+  "SalutPegWriteFork_1": "SLR2",
+  "SalutPegWriteFork_2": "SLR2",
+  "SalutPegWriteFork_3": "SLR2",
+  "SalutPegWriteFork_4": "SLR2",
+  "SalutPegWriteFork_5": "SLR2",
+  "SalutPegWriteFork_6": "SLR2",
+  "SalutPegWriteFork_7": "SLR2",
+  "SalutPublishJoin_0": "SLR1",
+  "SalutReadLaneMerge_0": "SLR2",
+  "SalutReadLaneMerge_1": "SLR1",
+  "SalutReadLaneMerge_2": "SLR2",
+  "SalutReadLaneMerge_3": "SLR2",
+  "SalutReadLaneMerge_4": "SLR2",
+  "SalutReadLaneMerge_5": "SLR2",
+  "SalutReadLaneMerge_6": "SLR2",
+  "SalutReadLaneMerge_7": "SLR2",
+  "SalutReadSwitch2_0": "SLR1",
+  "SalutReadSwitch2_1": "SLR1",
+  "SalutReadSwitch2_10": "SLR1",
+  "SalutReadSwitch2_11": "SLR1",
+  "SalutReadSwitch2_2": "SLR1",
+  "SalutReadSwitch2_3": "SLR1",
+  "SalutReadSwitch2_4": "SLR1",
+  "SalutReadSwitch2_5": "SLR1",
+  "SalutReadSwitch2_6": "SLR1",
+  "SalutReadSwitch2_7": "SLR1",
+  "SalutReadSwitch2_8": "SLR1",
+  "SalutReadSwitch2_9": "SLR1",
+  "SalutRequestBankSplit_0": "SLR0",
+  "SalutRequestBankSplit_1": "SLR1",
+  "SalutRequestBankSplit_2": "SLR1",
+  "SalutRequestBankSplit_3": "SLR1",
+  "SalutRequestBankSplit_4": "SLR1",
+  "SalutRequestBankSplit_5": "SLR0",
+  "SalutRequestBankSplit_6": "SLR0",
+  "SalutRequestBankSplit_7": "SLR0",
+  "SalutResponseEgress_0": "SLR2",
+  "SalutResponseEgress_1": "SLR1",
+  "SalutResponseEgress_2": "SLR2",
+  "SalutResponseEgress_3": "SLR2",
+  "SalutResponseEgress_4": "SLR2",
+  "SalutResponseEgress_5": "SLR2",
+  "SalutResponseEgress_6": "SLR2",
+  "SalutResponseEgress_7": "SLR2",
+  "SalutResponseLaneMerge_0": "SLR0",
+  "SalutResponseLaneMerge_1": "SLR1",
+  "SalutResponseLaneMerge_2": "SLR1",
+  "SalutResponseLaneMerge_3": "SLR1",
+  "SalutResponseLaneMerge_4": "SLR1",
+  "SalutResponseLaneMerge_5": "SLR0",
+  "SalutResponseLaneMerge_6": "SLR1",
+  "SalutResponseLaneMerge_7": "SLR1",
+  "SalutResponseSwitch2_0": "SLR1",
+  "SalutResponseSwitch2_1": "SLR1",
+  "SalutResponseSwitch2_10": "SLR1",
+  "SalutResponseSwitch2_11": "SLR2",
+  "SalutResponseSwitch2_2": "SLR1",
+  "SalutResponseSwitch2_3": "SLR1",
+  "SalutResponseSwitch2_4": "SLR1",
+  "SalutResponseSwitch2_5": "SLR1",
+  "SalutResponseSwitch2_6": "SLR1",
+  "SalutResponseSwitch2_7": "SLR1",
+  "SalutResponseSwitch2_8": "SLR1",
+  "SalutResponseSwitch2_9": "SLR2",
+  "SalutSmBank_0": "SLR0",
+  "SalutSmBank_1": "SLR1",
+  "SalutSmBank_2": "SLR1",
+  "SalutSmBank_3": "SLR1",
+  "SalutSmBank_4": "SLR1",
+  "SalutSmBank_5": "SLR0",
+  "SalutSmBank_6": "SLR0",
+  "SalutSmBank_7": "SLR0",
+  "SalutWriteBeatizer_0": "SLR2",
+  "SalutWriteBeatizer_1": "SLR2",
+  "SalutWriteBeatizer_2": "SLR2",
+  "SalutWriteBeatizer_3": "SLR2",
+  "SalutWriteBeatizer_4": "SLR2",
+  "SalutWriteBeatizer_5": "SLR2",
+  "SalutWriteBeatizer_6": "SLR2",
+  "SalutWriteBeatizer_7": "SLR2",
+  "SalutWriteLaneMerge_0": "SLR2",
+  "SalutWriteLaneMerge_1": "SLR2",
+  "SalutWriteLaneMerge_2": "SLR2",
+  "SalutWriteLaneMerge_3": "SLR2",
+  "SalutWriteLaneMerge_4": "SLR2",
+  "SalutWriteLaneMerge_5": "SLR2",
+  "SalutWriteLaneMerge_6": "SLR2",
+  "SalutWriteLaneMerge_7": "SLR2",
+  "SalutWriteSwitch2_0": "SLR1",
+  "SalutWriteSwitch2_1": "SLR1",
+  "SalutWriteSwitch2_10": "SLR1",
+  "SalutWriteSwitch2_11": "SLR1",
+  "SalutWriteSwitch2_2": "SLR1",
+  "SalutWriteSwitch2_3": "SLR1",
+  "SalutWriteSwitch2_4": "SLR1",
+  "SalutWriteSwitch2_5": "SLR1",
+  "SalutWriteSwitch2_6": "SLR1",
+  "SalutWriteSwitch2_7": "SLR1",
+  "SalutWriteSwitch2_8": "SLR1",
+  "SalutWriteSwitch2_9": "SLR1",
+  "control_s_axi_U": "SLR0"
+ },
+ "caps_util": {
+  "BRAM": 0.85,
+  "DSP": 0.9,
+  "LUT": 0.64,
+  "URAM": 0.9
+ },
+ "current_T1_model_cut": {
+  "01": 14146,
+  "12": 10413
+ },
+ "current_T1_util_pct": {
+  "BRAM": [
+   71.4,
+   71.4,
+   41.5
+  ],
+  "DSP": [
+   0.0,
+   7.0,
+   14.2
+  ],
+  "LUT": [
+   63.9,
+   63.4,
+   44.0
+  ],
+  "URAM": [
+   12.5,
+   87.5,
+   50.0
+  ]
+ },
+ "gearbox_families": [
+  "a_rsp",
+  "a_word_rsp",
+  "factor_rsp",
+  "factor_word_rsp",
+  "factor_writeback",
+  "front_global_data",
+  "front_rd_rsp_spu",
+  "front_wr_elem_spu",
+  "lane_data",
+  "lm_snoop_data",
+  "pe_rd_rsp",
+  "pe_wr_elem",
+  "peg_global_data",
+  "peg_lower_rsp",
+  "rsp_omega",
+  "rsp_omega_0",
+  "rsp_omega_1",
+  "rsp_omega_2",
+  "rsp_omega_3",
+  "wr_omega",
+  "wr_omega_0",
+  "wr_omega_1",
+  "wr_omega_2",
+  "wr_omega_3"
+ ],
+ "ilp_cut": {
+  "01": 15047,
+  "12": 10941
+ },
+ "ilp_util_pct": {
+  "BRAM": [
+   68.1,
+   44.5,
+   71.7
+  ],
+  "DSP": [
+   0.0,
+   0.9,
+   20.3
+  ],
+  "LUT": [
+   56.9,
+   56.1,
+   58.3
+  ],
+  "URAM": [
+   10.0,
+   50.0,
+   90.0
+  ]
+ },
+ "kind": "ILP_task_SLR_plan_with_gearbox4_NOT_native",
+ "mip_gap": 8.658583041110326e-05,
+ "model_fixed_platform_SLL": {
+  "01": 7022,
+  "12": 5182
+ },
+ "moved_vs_T1": {
+  "ParallelColumnFront_0": [
+   "SLR1",
+   "SLR2"
+  ],
+  "ParallelColumnFront_2": [
+   "SLR1",
+   "SLR2"
+  ],
+  "ParallelColumnFront_3": [
+   "SLR1",
+   "SLR2"
+  ],
+  "ParallelColumnFront_4": [
+   "SLR1",
+   "SLR2"
+  ],
+  "ParallelColumnFront_5": [
+   "SLR1",
+   "SLR2"
+  ],
+  "ParallelColumnFront_6": [
+   "SLR1",
+   "SLR2"
+  ],
+  "ParallelColumnFront_7": [
+   "SLR1",
+   "SLR2"
+  ],
+  "ParallelDegreeStore_0": [
+   "SLR2",
+   "SLR1"
+  ],
+  "ParallelFrontAllocationUnit_0": [
+   "SLR1",
+   "SLR2"
+  ],
+  "ParallelFrontDoneMux_0": [
+   "SLR1",
+   "SLR2"
+  ],
+  "ParallelFrontEmitter_0": [
+   "SLR1",
+   "SLR2"
+  ],
+  "ParallelScheduler_0": [
+   "SLR2",
+   "SLR1"
+  ],
+  "SalutABurstAdapter_2": [
+   "SLR0",
+   "SLR1"
+  ],
+  "SalutABurstAdapter_4": [
+   "SLR0",
+   "SLR1"
+  ],
+  "SalutFrontReadSource_0": [
+   "SLR1",
+   "SLR2"
+  ],
+  "SalutFrontReadSource_2": [
+   "SLR1",
+   "SLR2"
+  ],
+  "SalutFrontReadSource_3": [
+   "SLR1",
+   "SLR2"
+  ],
+  "SalutFrontReadSource_4": [
+   "SLR1",
+   "SLR2"
+  ],
+  "SalutFrontReadSource_5": [
+   "SLR1",
+   "SLR2"
+  ],
+  "SalutFrontReadSource_6": [
+   "SLR1",
+   "SLR2"
+  ],
+  "SalutFrontReadSource_7": [
+   "SLR1",
+   "SLR2"
+  ],
+  "SalutFrontWriteSource_0": [
+   "SLR1",
+   "SLR2"
+  ],
+  "SalutFrontWriteSource_1": [
+   "SLR1",
+   "SLR2"
+  ],
+  "SalutFrontWriteSource_2": [
+   "SLR1",
+   "SLR2"
+  ],
+  "SalutFrontWriteSource_3": [
+   "SLR1",
+   "SLR2"
+  ],
+  "SalutFrontWriteSource_4": [
+   "SLR1",
+   "SLR2"
+  ],
+  "SalutFrontWriteSource_6": [
+   "SLR1",
+   "SLR2"
+  ],
+  "SalutFrontWriteSource_7": [
+   "SLR1",
+   "SLR2"
+  ],
+  "SalutReadLaneMerge_0": [
+   "SLR1",
+   "SLR2"
+  ],
+  "SalutReadLaneMerge_2": [
+   "SLR1",
+   "SLR2"
+  ],
+  "SalutReadLaneMerge_3": [
+   "SLR1",
+   "SLR2"
+  ],
+  "SalutReadLaneMerge_4": [
+   "SLR1",
+   "SLR2"
+  ],
+  "SalutReadLaneMerge_5": [
+   "SLR1",
+   "SLR2"
+  ],
+  "SalutReadLaneMerge_6": [
+   "SLR1",
+   "SLR2"
+  ],
+  "SalutReadLaneMerge_7": [
+   "SLR1",
+   "SLR2"
+  ],
+  "SalutRequestBankSplit_2": [
+   "SLR0",
+   "SLR1"
+  ],
+  "SalutRequestBankSplit_4": [
+   "SLR0",
+   "SLR1"
+  ],
+  "SalutRequestBankSplit_7": [
+   "SLR1",
+   "SLR0"
+  ],
+  "SalutResponseEgress_0": [
+   "SLR1",
+   "SLR2"
+  ],
+  "SalutResponseEgress_2": [
+   "SLR1",
+   "SLR2"
+  ],
+  "SalutResponseEgress_3": [
+   "SLR1",
+   "SLR2"
+  ],
+  "SalutResponseEgress_4": [
+   "SLR1",
+   "SLR2"
+  ],
+  "SalutResponseEgress_5": [
+   "SLR1",
+   "SLR2"
+  ],
+  "SalutResponseEgress_6": [
+   "SLR1",
+   "SLR2"
+  ],
+  "SalutResponseEgress_7": [
+   "SLR1",
+   "SLR2"
+  ],
+  "SalutResponseLaneMerge_2": [
+   "SLR0",
+   "SLR1"
+  ],
+  "SalutResponseLaneMerge_4": [
+   "SLR0",
+   "SLR1"
+  ],
+  "SalutResponseLaneMerge_6": [
+   "SLR0",
+   "SLR1"
+  ],
+  "SalutResponseSwitch2_11": [
+   "SLR1",
+   "SLR2"
+  ],
+  "SalutResponseSwitch2_9": [
+   "SLR1",
+   "SLR2"
+  ],
+  "SalutSmBank_2": [
+   "SLR0",
+   "SLR1"
+  ],
+  "SalutSmBank_4": [
+   "SLR0",
+   "SLR1"
+  ],
+  "SalutSmBank_7": [
+   "SLR1",
+   "SLR0"
+  ],
+  "SalutWriteBeatizer_0": [
+   "SLR1",
+   "SLR2"
+  ],
+  "SalutWriteBeatizer_1": [
+   "SLR1",
+   "SLR2"
+  ],
+  "SalutWriteBeatizer_3": [
+   "SLR1",
+   "SLR2"
+  ],
+  "SalutWriteBeatizer_4": [
+   "SLR1",
+   "SLR2"
+  ],
+  "SalutWriteBeatizer_6": [
+   "SLR1",
+   "SLR2"
+  ],
+  "SalutWriteBeatizer_7": [
+   "SLR1",
+   "SLR2"
+  ],
+  "SalutWriteLaneMerge_0": [
+   "SLR1",
+   "SLR2"
+  ],
+  "SalutWriteLaneMerge_1": [
+   "SLR1",
+   "SLR2"
+  ],
+  "SalutWriteLaneMerge_3": [
+   "SLR1",
+   "SLR2"
+  ],
+  "SalutWriteLaneMerge_4": [
+   "SLR1",
+   "SLR2"
+  ],
+  "SalutWriteLaneMerge_6": [
+   "SLR1",
+   "SLR2"
+  ],
+  "SalutWriteLaneMerge_7": [
+   "SLR1",
+   "SLR2"
+  ]
+ },
+ "objective_bound": 15057.149151342288,
+ "status": "Optimization terminated successfully. (HiGHS Status 7: Optimal)"
+}

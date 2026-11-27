@@ -24,21 +24,82 @@ constexpr int LOCAL_CACHE   = 8;    // 每 PEG 共享 cache 槽数（简化）
 // ---------- HBM 配置 ----------
 constexpr int A_BANKS       = 8;    // A 空间 HBM bank 数
 constexpr int L_BANKS       = 8;    // L 空间 bank
-constexpr int U_BANKS       = 4;    // U 空间 bank
+constexpr int U_BANKS       = 8;    // U 空间 bank
+
+// U280 implementation: eight independent PEGs, with four physical PEs in each
+// PEG.  One PE per PEG is reserved for early segment/pivot-wait work and three
+// process ready-pivot segments.  This remains a real 32-PE implementation while
+// fitting the U280 LUT budget; the 64-PE form exceeds the device before the
+// platform shell is added.  Column fronts are separate SPU-style producers.
+constexpr int PAR_NUM_PEG       = 8;
+constexpr int PAR_PE_PER_PEG    = 2;
+constexpr int PAR_NUM_PE        = PAR_NUM_PEG * PAR_PE_PER_PEG;
+constexpr int PAR_NUM_FRONT     = 8;
+constexpr int PAR_NUM_CLIENT    = PAR_NUM_PE + PAR_NUM_FRONT;
+constexpr int PAR_NUM_A_BANK    = 8;
+constexpr int PAR_NUM_L_BANK    = 8;
+constexpr int PAR_NUM_U_BANK    = 8;
+constexpr int PAR_NUM_HBM_BANK  =
+    PAR_NUM_A_BANK + PAR_NUM_L_BANK + PAR_NUM_U_BANK;
+constexpr int PAR_NUM_HBM_WRITE_BANK = PAR_NUM_L_BANK + PAR_NUM_U_BANK;
+// Per-PEG shared-memory lines.  Each PEG owns an independent tagged U/pivot
+// store in front of HBM; the PE work arrays remain private local memories.
+constexpr int PAR_SM_LINES      = 16384;
+constexpr int PAR_SM_INDEX_BITS = 14;
+// Shared L store: 8 physical L banks x 4K 512-bit lines/bank (2 MiB total).
+// It is a tagged cache rather than factor backing storage: capacity conflicts
+// fall through to the independent HBM banks, preserving numerical correctness.
+// Keeping every bank at one 4K-deep URAM row also removes the distributed
+// depth-select muxes that made the former 8 MiB SM span SLR0/SLR1 and produced
+// the r23 level-7 routing congestion around its BRAM/URAM enable network.
+constexpr int PAR_GLOBAL_SM_LINES = 262144;
+constexpr int PAR_GLOBAL_SM_INDEX_BITS = 18;
+constexpr int PAR_FRONT_CACHE_LINES = 16384;
+constexpr int PAR_SEG_ROWS_MAX = 2048;
+constexpr int PAR_MAX_N        = 65536;  // current synthesizable on-chip limit
+constexpr int PAR_SIM_MAX_N    = 1 << 20;
+#ifdef __SYNTHESIS__
+constexpr int PAR_RUNTIME_MAX_N = PAR_MAX_N;
+#else
+// Event simulation models the same scheduler/front/32-PE streams with host
+// memory standing in for physical RAM, so all 15 paper matrices can be
+// validated before the large-N hardware scratch-store redesign is complete.
+constexpr int PAR_RUNTIME_MAX_N = PAR_SIM_MAX_N;
+#endif
+#ifdef __SYNTHESIS__
+constexpr int PAR_MAX_SEG      = 1 << 20;
+#else
+// ASIC_680k produces 1,507,465 uniform 2K-row segments.  Host functional and
+// event simulation use ordinary memory, so retain the hardware limit for RTL
+// while allowing the complete paper matrix in software.
+constexpr int PAR_MAX_SEG      = 1 << 21;
+#endif
+constexpr uint32_t PAR_META_MAGIC = 0x504C5532u;  // "PLU2"
+constexpr uint32_t PAR_META_HEADER_WORDS = 16;
+constexpr uint32_t PAR_COL_DESC_WORDS = 10;
+constexpr uint32_t PAR_SEG_DESC_WORDS = 13;
 
 // ---------- FIFO 深度（优化配置）----------
 // 解决方案：通过修复Poster的依赖发送逻辑，避免死锁
 // 1. Poster必须先发送完当前任务的所有依赖，才能接收新任务
 // 2. 使用阻塞写入确保依赖必须被发送
 // 3. 这样可以避免"任务已转发但依赖未发送"的死锁情况
-// 为软件仿真场景放大 FIFO，降低回压与阻塞风险
-constexpr int FIFO_CTRL      = 1024;    // 控制流
-constexpr int FIFO_DATA_IN   = 65536;   // 输入数据（HBM读）
-constexpr int FIFO_DATA_MID  = 65536;   // 中间数据（依赖/分发）
-constexpr int FIFO_DATA_OUT  = 65536;   // 输出数据（写回）
-constexpr int FIFO_CACHE_REQ = 1024;    // 缓存请求
-constexpr int FIFO_CACHE_RSP = 1024;    // 缓存响应
-constexpr int FIFO_COL_DONE  = 1024;    // 列完成缓冲
+// 使用可映射到片上存储的有界弹性 FIFO；所有生产者/消费者均持续处理
+// 回压。队列只吸收流水线/仲裁延迟，不保存矩阵工作集。把千级深度复制到
+// 32 个 PE（部分元素宽 513 bit）会在集成综合时需要数万个 BRAM，因此
+// 私有事件流使用单项前递寄存器并依靠端到端回压。TAPA 对
+// 2..32 深度的超宽流会每个数据位占用一个 SRL LUT；多 PE 复制后会
+// 超过 U280 LUT 容量。队列只解耦单周期握手，不保存矩阵工作集。较稀疏的
+// 列/段完成流单独保留 128 项 BRAM 余量；HBM bank 返回流在顶层保留
+// 64 项，并由 XO 打包补丁定向到 BRAM。
+constexpr int FIFO_CTRL      = 8;      // 容纳 8-front/8-PEG 仲裁中的并发控制事件
+constexpr int FIFO_DATA_IN   = 1;      // 超宽终端读返回，单项前递并回压
+constexpr int FIFO_DATA_MID  = 1;      // 中间数据/依赖分发
+constexpr int FIFO_DATA_OUT  = 1;      // 超宽写回包，单项前递并回压
+constexpr int FIFO_CACHE_REQ = 1;      // 分层存储请求，单项前递
+constexpr int FIFO_CACHE_RSP = 2;      // 分层存储响应弹性级
+constexpr int FIFO_HBM_STAGE = 1;      // HBM 返回合并树级间前递
+constexpr int FIFO_COL_DONE  = 128;    // 低带宽列/段完成事件
 
 // ---------- 快速综合开关（缩小缓冲/改用BRAM以加快 HLS/RTL） ----------
 #ifndef FAST_SYNTH
@@ -63,22 +124,55 @@ constexpr uint32_t SEG_ID_TERMINATE = 0xFFFFFFFF; // 用于终止模块的特殊
 // ---------- 基础类型 ----------
 using WORD64  = ap_uint<64>;     // 对应 double/float 宽度
 using WORD512 = ap_uint<512>;    // HBM 突发宽度
+using WORD2048 = ap_uint<2048>;  // ColumnFront 专用 4-beat L 读取宽度
 using META_T  = uint32_t;        // META 区控制类型
 using REAL    = float;           // 浮点数类型（用于数值计算）
 
+// Repeated SALUT refactorization uses a fixed symbolic/pivot order.  In FP32
+// an exactly cancelled (or non-finite) diagonal must not poison every later
+// column.  Continue with a deterministic unit diagonal perturbation, matching
+// the CPU reference, transaction model, and both RTL numerical paths.
+constexpr REAL STATIC_PIVOT_TOL = 1.0e-20f;
+constexpr REAL STATIC_PIVOT_REPLACEMENT = 1.0f;
+
+static inline REAL StabilizeStaticPivot(REAL pivot) {
+#pragma HLS inline
+  const ap_uint<32> bits = tapa::bit_cast<ap_uint<32>>(pivot);
+  const ap_uint<8> exponent = bits.range(30, 23);
+  const REAL magnitude = bits[31] ? -pivot : pivot;
+  if (exponent == 0xFFu || magnitude <= STATIC_PIVOT_TOL) {
+    return bits[31] ? -STATIC_PIVOT_REPLACEMENT
+                    : STATIC_PIVOT_REPLACEMENT;
+  }
+  return pivot;
+}
+
 constexpr int VEC_64_PER_512 = 8;  // 每 512b 含 8 个 64b 元素
+// LM/SM capacities above are expressed in 64-bit elements.  The physical
+// cache arrays store complete HBM beats while preserving the same byte size.
+constexpr int PAR_SM_WORDS = PAR_SM_LINES / VEC_64_PER_512;
+constexpr int PAR_GLOBAL_SM_WORDS =
+    PAR_GLOBAL_SM_LINES / VEC_64_PER_512;
 
 //======================================================================
-// 地址打包函数（32-bit 元素地址：高8位是 bank，低24位是偏移）
+// 地址打包函数（32-bit 元素地址：高5位是 bank，低27位是偏移）。
+// 设计只使用 24 个 HBM bank，5 位 bank id 足够；27 位元素偏移可覆盖
+// M12+ 的大规模 A/factor bank，避免旧 24-bit offset 静默回绕。
 //======================================================================
 
-// 每个 bank 的大小（2^24 个 64b 元素）
-#define BANK_SIZE (1 << 24)
+constexpr uint32_t ADDR_BANK_BITS = 5;
+constexpr uint32_t ADDR_OFFSET_BITS = 32 - ADDR_BANK_BITS;
+constexpr uint32_t ADDR_OFFSET_MASK = (uint32_t(1) << ADDR_OFFSET_BITS) - 1u;
+constexpr uint32_t BANK_SIZE = uint32_t(1) << ADDR_OFFSET_BITS;
 
-static inline uint32_t addr_bank(uint32_t addr) { return (addr >> 24) & 0xFF; } // bank 编号 (高8位)
-static inline uint32_t addr_off (uint32_t addr) { return addr & 0x00FFFFFF; }     // 偏移 (低24位)
+static inline uint32_t addr_bank(uint32_t addr) {
+  return addr >> ADDR_OFFSET_BITS;
+}
+static inline uint32_t addr_off(uint32_t addr) {
+  return addr & ADDR_OFFSET_MASK;
+}
 static inline uint32_t pack_addr(uint32_t bank, uint32_t off) {
-  return ((bank & 0xFF) << 24) | (off & 0xFFFFFF);  // 拼接 bank 和 offset
+  return (bank << ADDR_OFFSET_BITS) | (off & ADDR_OFFSET_MASK);
 }
 
 //======================================================================
@@ -100,10 +194,48 @@ struct WriteBurstReq {
 };
 
 // ---------- 带 PE 标签请求 ----------
-struct ReadReqTagged  { ReadBurstReq  r; ap_uint<8> pe; };
-struct WriteReqTagged { WriteBurstReq r; ap_uint<8> pe; };
+struct RR { ReadBurstReq  r; ap_uint<8> pe; };
+struct WR { WriteBurstReq r; ap_uint<8> pe; };
+using ReadReqTagged = RR;
+using WriteReqTagged = WR;
 struct ReadElemTagged { WORD64 v; ap_uint<8> pe; };
+// One physical 512-bit beat per response.  `first` and `count` describe the
+// requested 64-bit lanes inside that beat.  Longer reads are losslessly split
+// into additional packets.  Keeping the routed payload to one beat is
+// essential on the three-SLR U280: the old seven-beat RP and four-beat HRP
+// multiplied thousands of payload wires across every PE/cache mux and made
+// the design physically impossible to partition.
+struct RP {
+  WORD512 v;
+  ap_uint<8> pe;
+  ap_uint<5> first;
+  ap_uint<7> count;
+};
+// Keep a distinct type for the physical HBM fabric so the hierarchy remains
+// explicit, even though both fabrics now carry one beat per packet.
+struct HRP {
+  WORD512 v;
+  ap_uint<8> pe;
+  ap_uint<5> first;
+  ap_uint<7> count;
+};
+struct WP {
+  WORD512 v;
+  ap_uint<8> pe;
+  ap_uint<4> count;
+};
+using ReadPacketTagged = RP;
+using HBMReadPacketTagged = HRP;
+// A physical HBM response accompanied by the logical address needed to
+// install an L line in the shared cache.  Per-PEG HBM lanes create this
+// packet; the shared-memory task consumes at most one fill per cycle.
+struct SMFillPacket {
+  RP rsp;
+  uint32_t address;
+};
+using WritePacketTagged = WP;
 struct WriteElemTagged{ WORD64 v; ap_uint<8> pe; };
+
 
 //======================================================================
 //  控制与调度结构
@@ -159,6 +291,77 @@ struct ReadySeg {
   uint32_t dep_lo;     // 依赖区间起
   uint32_t dep_hi;     // 依赖区间止
   uint32_t is_last;    // 是否列末段（改为uint32_t以保持对齐）
+};
+
+// PLU2 两阶段数值架构的控制包。
+struct ParColumnTask {
+  uint32_t j;
+  uint32_t a_addr;       // 列前缀 A，64-bit element packed address
+  uint32_t a_words;      // 512-bit words
+  uint32_t u_addr;       // 本列 U 输出块，64-bit element packed address
+  uint32_t u_words;
+  uint32_t dep_count;
+};
+
+struct ParSegmentTask {
+  uint32_t seg_id;
+  uint32_t j;
+  uint32_t row_lo;
+  uint32_t row_hi;
+  uint32_t a_addr;       // 该行段的 A 数据
+  uint32_t a_words;
+  uint32_t l_addr;       // 对齐的 L 输出块
+  uint32_t l_words;
+  uint32_t l_count;      // 真实 L 元素数（不含 padding）
+  uint32_t u_diag_addr;
+  uint32_t dep_count;
+  uint32_t early;        // 1: MAC may start before target pivot commits
+};
+
+struct ParDepEntry {
+  uint32_t k;
+  uint32_t l_addr;       // 列前端：L(:,k) 全列；段 PE：对应行段切片
+  uint32_t l_words;
+  uint32_t u_addr;       // U(k,j)
+};
+
+// Four 128-bit dependency records share one physical/control-stream event in
+// hardware.  Host TAPA simulation batches 16 records to reduce cooperative
+// FIFO context switches; record ordering and the synthesized interface stay
+// unchanged.
+#ifdef __SYNTHESIS__
+constexpr uint32_t PAR_DEP_PACKET_WIDTH = 4;
+#else
+constexpr uint32_t PAR_DEP_PACKET_WIDTH = 16;
+#endif
+struct ParDepPacket {
+  ParDepEntry d0;
+  ParDepEntry d1;
+  ParDepEntry d2;
+  ParDepEntry d3;
+#ifndef __SYNTHESIS__
+  ParDepEntry d4;
+  ParDepEntry d5;
+  ParDepEntry d6;
+  ParDepEntry d7;
+  ParDepEntry d8;
+  ParDepEntry d9;
+  ParDepEntry d10;
+  ParDepEntry d11;
+  ParDepEntry d12;
+  ParDepEntry d13;
+  ParDepEntry d14;
+  ParDepEntry d15;
+#endif
+};
+
+// A segment may finish its independent MAC phase before the target column's
+// pivot is available.  The pivot gate holds this request until the column-front
+// write has committed, allowing real segment/column overlap without stale Ujj.
+struct ParPivotReq {
+  uint32_t j;
+  uint32_t u_diag_addr;
+  ap_uint<8> pe;
 };
 
 //======================================================================
@@ -301,7 +504,7 @@ void DegScheduler(
   tapa::istream<META_T>& posting_flat_in,
   tapa::ostreams<ReadySeg, PEGS>& ready_local_out,
   tapa::ostream<ReadySeg>& ready_global_out,
-  tapa::istream<uint32_t>& col_done_in,
+  tapa::istream<uint32_t>& seg_done_in,
   tapa::ostream<bool>& done_out
 );
 
@@ -344,13 +547,16 @@ void WriteElemMux(
 );
 
 void HBM_Read_Service(
-  tapa::mmap<ap_uint<512>> A_0, tapa::mmap<ap_uint<512>> A_1, tapa::mmap<ap_uint<512>> A_2, tapa::mmap<ap_uint<512>> A_3,
-  tapa::mmap<ap_uint<512>> A_4, tapa::mmap<ap_uint<512>> A_5, tapa::mmap<ap_uint<512>> A_6, tapa::mmap<ap_uint<512>> A_7,
-  tapa::mmap<ap_uint<512>> L_0, tapa::mmap<ap_uint<512>> L_1, tapa::mmap<ap_uint<512>> L_2, tapa::mmap<ap_uint<512>> L_3,
-  tapa::mmap<ap_uint<512>> L_4, tapa::mmap<ap_uint<512>> L_5, tapa::mmap<ap_uint<512>> L_6, tapa::mmap<ap_uint<512>> L_7,
-  tapa::mmap<ap_uint<512>> U_0, tapa::mmap<ap_uint<512>> U_1, tapa::mmap<ap_uint<512>> U_2, tapa::mmap<ap_uint<512>> U_3,
+  tapa::async_mmap<ap_uint<512>>& A_0, tapa::async_mmap<ap_uint<512>>& A_1, tapa::async_mmap<ap_uint<512>>& A_2, tapa::async_mmap<ap_uint<512>>& A_3,
+  tapa::async_mmap<ap_uint<512>>& A_4, tapa::async_mmap<ap_uint<512>>& A_5, tapa::async_mmap<ap_uint<512>>& A_6, tapa::async_mmap<ap_uint<512>>& A_7,
+  tapa::async_mmap<ap_uint<512>>& L_0, tapa::async_mmap<ap_uint<512>>& L_1, tapa::async_mmap<ap_uint<512>>& L_2, tapa::async_mmap<ap_uint<512>>& L_3,
+  tapa::async_mmap<ap_uint<512>>& L_4, tapa::async_mmap<ap_uint<512>>& L_5, tapa::async_mmap<ap_uint<512>>& L_6, tapa::async_mmap<ap_uint<512>>& L_7,
+  tapa::async_mmap<ap_uint<512>>& U_0, tapa::async_mmap<ap_uint<512>>& U_1, tapa::async_mmap<ap_uint<512>>& U_2, tapa::async_mmap<ap_uint<512>>& U_3,
   tapa::istream<ReadReqTagged>& req_in,
-  tapa::ostream<ReadElemTagged>& elem_out
+  tapa::ostream<ReadElemTagged>& elem_out,
+  tapa::istream<WriteReqTagged>& wr_req_in,
+  tapa::istream<WriteElemTagged>& wr_elem_in,
+  tapa::ostream<ap_uint<8>>& wr_ack_out
 );
 
 void DepPtrBroadcaster(
@@ -368,6 +574,7 @@ void DepFlatBroadcaster(
 void Poster(
   tapa::istream<uint32_t>& meta_idx_in,
   tapa::istreams<ReadySeg, NUM_PE>& ready_in_per_pe,
+  tapa::ostreams<ReadySeg, NUM_PE>& ready_passthrough,
   tapa::istream<META_T>& dep_ptr_in,
   tapa::istream<META_T>& dep_flat_in,
   tapa::ostreams<DepEntry, NUM_PE>& dep_stream_out
@@ -407,7 +614,7 @@ void SegmentExecutor_withDepStream(
   tapa::ostream<WriteReqTagged>& wr_req_q,
   tapa::ostream<WriteElemTagged>& wr_elem_q,
   tapa::istream<ap_uint<1>>& wr_ack_in,
-  tapa::ostream<uint32_t>& col_done_out,
+  tapa::ostream<uint32_t>& seg_done_out,
   tapa::ostream<LUReq>& glb_req_out,
   tapa::istream<LURsp>& glb_rsp_in
 );
@@ -431,12 +638,16 @@ void SparseLUKernel(
   tapa::mmap<ap_uint<512>> L_5,
   tapa::mmap<ap_uint<512>> L_6,
   tapa::mmap<ap_uint<512>> L_7,
-  // U矩阵: 4个HBM通道
+  // U矩阵: 8个HBM通道
   tapa::mmap<ap_uint<512>> U_0,
   tapa::mmap<ap_uint<512>> U_1,
   tapa::mmap<ap_uint<512>> U_2,
   tapa::mmap<ap_uint<512>> U_3,
-  tapa::mmap<META_T> META_mmap
+  tapa::mmap<ap_uint<512>> U_4,
+  tapa::mmap<ap_uint<512>> U_5,
+  tapa::mmap<ap_uint<512>> U_6,
+  tapa::mmap<ap_uint<512>> U_7,
+  tapa::mmap<META_T> META_SCHED_mmap,
+  tapa::mmap<META_T> META_FRONT_mmap,
+  tapa::mmap<META_T> META_SEGMENT_mmap
 );
-
-

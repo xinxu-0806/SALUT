@@ -14,6 +14,7 @@ mkdir -p "$FPGA_DIR"
 
 v++ -l --target hw \
   --platform "$PLATFORM" \
+  --kernel_frequency "${KERNEL_FREQUENCY_MHZ:-150}" \
   --config "$HBM_CONFIG" \
   --temp_dir "$FPGA_DIR/link_tmp" \
   "$XO_FILE" \

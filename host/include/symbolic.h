@@ -67,6 +67,10 @@ public:
     void fill_in(unsigned int *ai, unsigned int *ap);
     void csr();
     void predictLU(unsigned int *ai, unsigned int *ap, double *ax);
+    void import_nicslu_factor_pattern(const SNicsLU *nicslu,
+                                      unsigned int *ai,
+                                      unsigned int *ap,
+                                      double *ax);
     void build_predicted_L();   // <-- 新增：构建预测L结构
     void leveling();
     std::vector<REAL> solve(SNicsLU *nicslu, const std::vector<REAL> &rhs);

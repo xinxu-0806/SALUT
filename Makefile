@@ -1,16 +1,17 @@
 # ==============================================================================
 # Makefile for Sparse LU FPGA Accelerator (Integrated with CPU Preprocessing)
 # ==============================================================================
+.DEFAULT_GOAL := host
 
 
 # --- 1. 环境变量 (请确保在你的 shell 环境中正确设置这些变量) ---
 # # TAPA 编译器的根目录，请确保已设置此环境变量
-export TAPA_ROOT=/home/xxu/.rapidstream-tapa
+export TAPA_ROOT ?= $(HOME)/.rapidstream-tapa
 # Vitis 工具链的根目录，请确保已设置此环境变量
-export XILINX_VITIS=/data/xxu/Xilinx/Vitis/2022.2
-export XILINX_VITIS_HLS=/data/xxu/Xilinx/Vitis_HLS/2022.2
+export XILINX_VITIS ?= /tools/Xilinx/Vitis/2022.2
+export XILINX_VITIS_HLS ?= /tools/Xilinx/Vitis_HLS/2022.2
 # XRT 运行时库的根目录
-export XILINX_XRT=/opt/xilinx/xrt
+export XILINX_XRT ?= /opt/xilinx/xrt
 
 # --- 核心修改：在 Makefile 中显式设置 PATH ---
 # 确保 PATH 包含标准系统命令的路径，以及你的工具链路径
@@ -18,14 +19,17 @@ export PATH := /usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:$(PA
 export PATH := $(PATH):$(TAPA_ROOT)/usr/bin:$(XILINX_VITIS_HLS)/bin:$(XILINX_XRT)/bin
 
 
+ifeq ($(VERBOSE_ENV),1)
 $(info DEBUG: XILINX_VITIS is $(XILINX_VITIS))
 $(info DEBUG: XILINX_VITIS_HLS is $(XILINX_VITIS_HLS))
 $(info DEBUG: TAPA_ROOT is $(TAPA_ROOT))
 $(info DEBUG: XILINX_XRT is $(XILINX_XRT))
 $(info DEBUG: PATH: $(PATH))
+endif
 # --- Compiler and Tools ---
 # CXX = g++ 
-CC = gcc # For compiling .c files like preprocess.c
+# For compiling .c files like preprocess.c
+CC = gcc
 
 # --- Project Paths ---
 HOST_DIR = host
@@ -39,15 +43,27 @@ HOST_BUILD_DIR = $(BUILD_DIR)/host
 FPGA_BUILD_DIR = $(BUILD_DIR)/fpga
 
 # --- Target Names ---
-HOST_EXECUTABLE_BASE = lu_solver_host_emu # 主机可执行文件名称
+# 主机可执行文件名称
+HOST_EXECUTABLE_BASE = lu_solver_host_emu
 PLATFORM = xilinx_u280_gen3x16_xdma_1_202211_1
+PLATFORM_FILE ?= $(PLATFORM)
 TOP_FUNCTION = SparseLUKernel
 
-HBM_CONFIG_INI = $(FPGA_BUILD_DIR)/hbm_config.ini # HBM 配置文件
-FPGA_XCLBIN_NAME = $(TOP_FUNCTION)_$(PLATFORM).xclbin # .xclbin 文件名
-FPGA_XO_NAME = $(TOP_FUNCTION)_$(PLATFORM).hw.xo # .hw.xo 文件名
-FPGA_HOST_STUB_NAME = $(TOP_FUNCTION)_$(PLATFORM).host.cpp # 主机存根文件名
-FPGA_WORK_DIR_NAME=$(TOP_FUNCTION)_$(PLATFORM).tapa_work # TAPA 工作目录名
+# HBM 配置文件
+HBM_CONFIG_INI = hbm_config.ini
+# run_fpga.sh derives the HLS period from this frequency; allow explicit override.
+KERNEL_FREQUENCY_MHZ ?= 220
+# Keep implementation directives selectable per run so a failed congestion
+# experiment can be retried without editing the build recipe or losing its
+# exact command line in the driver log.
+SALUT_PLACE_DIRECTIVE ?= SSI_BalanceSLLs
+SALUT_ROUTE_DIRECTIVE ?= Default
+SALUT_PRE_PLACE_SCRIPT ?= scripts/constrain_task_slrs.tcl
+# FPGA 产物名称
+FPGA_XCLBIN_NAME = $(TOP_FUNCTION)_$(PLATFORM).xclbin
+FPGA_XO_NAME = $(TOP_FUNCTION)_$(PLATFORM).hw.xo
+FPGA_HOST_STUB_NAME = $(TOP_FUNCTION)_$(PLATFORM).host.cpp
+FPGA_WORK_DIR_NAME = $(TOP_FUNCTION)_$(PLATFORM).tapa_work
 
 INCLUDE_DIRS = -I$(HOST_DIR)/include \
 				-I$(SRC_DIR) \
@@ -64,7 +80,7 @@ INCLUDE_DIRS = -I$(HOST_DIR)/include \
 				-I/usr/include/CL
 
 # 确保包含 tapa 和 XRT 的头文件路径
-COMMON_CXXFLAGS = -g -O2 -Wall -std=c++17 -fopenmp $(INCLUDE_DIRS)
+COMMON_CXXFLAGS = -g -O2 -Wall -std=c++17 -fopenmp -ffp-contract=off $(INCLUDE_DIRS)
 
 CFLAGS_C = -O2 -Wall -std=gnu99 -fopenmp -fPIC $(INCLUDE_DIRS)
 
@@ -138,14 +154,35 @@ HOST_OBJS = $(addprefix $(HOST_BUILD_DIR)/, $(notdir $(HOST_MAIN_SRC:.cpp=.o))) 
 
 # 使用简化且自洽的内核以通过软件仿真
 FPGA_KERNEL_SRCS = $(SRC_DIR)/lu_kernel.cpp
+SALUT_MEMORY_DEPS = $(SRC_DIR)/lu_kernel.h $(SRC_DIR)/black_hole_utils.h $(wildcard $(SRC_DIR)/salut_*.h $(SRC_DIR)/salut_*.inc)
+MEMORY_TEST_DIR ?= $(BUILD_DIR)/memory_banked_lu/tests
+MEMORY_CASE ?= all
+MEMORY_TEST_SRCS = $(wildcard tests/memory/*.cpp)
+MEMORY_TEST_DEPS = $(wildcard tests/memory/*.h) $(HOST_DIR)/salut_layout_validation.h $(SALUT_MEMORY_DEPS)
+
+.PHONY: memory-test
+memory-test: $(MEMORY_TEST_DIR)/memory_test
+	 timeout 120 "$<" "$(MEMORY_CASE)"
+
+$(MEMORY_TEST_DIR)/memory_test: $(MEMORY_TEST_SRCS) $(MEMORY_TEST_DEPS) Makefile
+	@mkdir -p "$(MEMORY_TEST_DIR)"
+	$(CXX) -O2 -std=c++17 -ffp-contract=off -UNDEBUG -Wno-unknown-pragmas $(INCLUDE_DIRS) -Itests/memory $(filter-out tests/memory/hls_top.cpp,$(MEMORY_TEST_SRCS)) -o "$@"
+
+.PHONY: memory-product-empty
+memory-product-empty: $(MEMORY_TEST_DIR)/product_empty
+	SALUT_EXACT_MEMORY_EVENTS=1 TAPA_CONCURRENCY=128 timeout 120 "$<"
+
+$(MEMORY_TEST_DIR)/product_empty: tests/memory/product_empty.cc $(FPGA_KERNEL_SRCS) $(MEMORY_TEST_DEPS) Makefile
+	@mkdir -p "$(MEMORY_TEST_DIR)"
+	"$(TAPA_ROOT)/usr/bin/tapa" g++ -- -O2 -ffp-contract=off -UNDEBUG $(INCLUDE_DIRS) tests/memory/product_empty.cc $(FPGA_KERNEL_SRCS) -o "$@"
+
+$(HOST_OBJS): $(SALUT_MEMORY_DEPS) $(HOST_DIR)/salut_layout_validation.h
 
 # ==============================================================================
 # Main Targets
 # ==============================================================================
 
-.PHONY: sw_emu hw_emu hw clean distclean create_build_dirs \
-		(FPGA_BUILD_DIR)/$(FPGA_HOST_STUB_NAME) \
-		$(FPGA_BUILD_DIR)/$(FPGA_XO_NAME)
+.PHONY: host sw_emu hw_emu hw board clean distclean create_build_dirs
 
 # 默认目标：编译主机程序 (用于硬件部署，假定 .host.cpp 已存在)
 # 'all' 应该依赖于所有最终的可执行文件，而不是仅仅硬件部署版本
@@ -153,6 +190,9 @@ FPGA_KERNEL_SRCS = $(SRC_DIR)/lu_kernel.cpp
 # 	 $(HOST_BUILD_DIR)/$(HOST_EXECUTABLE_BASE)_hw_emu \
 # 	 $(HOST_BUILD_DIR)/$(HOST_EXECUTABLE_BASE) \
 # 	 $(FPGA_BUILD_DIR)/$(FPGA_XCLBIN_NAME)
+
+# 主机程序同时支持空 bitstream 的软件模型和 .xclbin 硬件运行
+host: $(HOST_BUILD_DIR)/$(HOST_EXECUTABLE_BASE)
 
 # 软件仿真目标：编译主机程序，用于软件仿真
 sw_emu: $(HOST_BUILD_DIR)/$(HOST_EXECUTABLE_BASE)
@@ -163,6 +203,9 @@ hw_emu: $(HOST_BUILD_DIR)/$(HOST_EXECUTABLE_BASE)
 # 比特流目标：编译 .xclbin 文件 (假定 .xo 已由 run_tapa.sh 生成)
 hw: $(FPGA_BUILD_DIR)/$(FPGA_XCLBIN_NAME)
 
+# 完整上板产物
+board: host hw
+
 # ==============================================================================
 # 编译规则
 # ==============================================================================
@@ -171,32 +214,30 @@ hw: $(FPGA_BUILD_DIR)/$(FPGA_XCLBIN_NAME)
 .PHONY: create_build_dirs
 create_build_dirs:
 	@echo "--- Creating build directories ---"
-	@mkdir -p build
-	@mkdir -p build/host
-	@mkdir -p build/fpga
+	@mkdir -p "$(BUILD_DIR)" "$(HOST_BUILD_DIR)" "$(FPGA_BUILD_DIR)"
 
 # --- 1. 编译 NicsLU 静态库 (调用其顶层 Makefile) ---
 # NicsLU 的静态库文件，作为其他目标的依赖
 NICSLU_LIB_PATH = $(NICSLU_SUBDIR)/lib/nicslu.a
 NICSLU_UTIL_LIB_PATH = $(NICSLU_SUBDIR)/util/nicslu_util.a
 
-$(NICSLU_LIB_PATH) $(NICSLU_UTIL_LIB_PATH): create_build_dirs
+$(NICSLU_LIB_PATH) $(NICSLU_UTIL_LIB_PATH): | create_build_dirs
 	@echo "--- Building NicsLU library via sub-Makefile ---"
 	# 确保 NicsLU 的 Makefile 能够找到其源文件和头文件
 	$(MAKE) -C $(NICSLU_SUBDIR) CFLAGS="$(CFLAGS_C) $(INCLUDE_DIRS)"
 	$(MAKE) -C $(NICSLU_SUBDIR)/util CFLAGS="$(CFLAGS_C) $(INCLUDE_DIRS)"
 
 # --- 2. 编译主机代码的各个 .cpp/.c 文件为 .o 文件 ---
-$(HOST_BUILD_DIR)/%.o: $(HOST_DIR)/%.cpp create_build_dirs
+$(HOST_BUILD_DIR)/%.o: $(HOST_DIR)/%.cpp | create_build_dirs
 	@echo "--- Compiling Host C++ source: $< ---"
 	$(CXX) $(COMMON_CXXFLAGS) -c $< -o $@
 
-$(HOST_BUILD_DIR)/%.o: $(HOST_DIR)/%.cc create_build_dirs
+$(HOST_BUILD_DIR)/%.o: $(HOST_DIR)/%.cc | create_build_dirs
 	@echo "--- Compiling Host C++ source: $< ---"
 	$(CXX) $(COMMON_CXXFLAGS) -c $< -o $@
 
 # --- 3. 编译 preprocess.c 为 .o 文件 (调用其子 Makefile) ---
-$(HOST_BUILD_DIR)/preprocess.o: $(HOST_PREPROCESS_C_SRC) create_build_dirs
+$(HOST_BUILD_DIR)/preprocess.o: $(HOST_PREPROCESS_C_SRC) | create_build_dirs
 	@echo "--- Compiling preprocess.cpp ---"
 	$(CXX) $(COMMON_CXXFLAGS) -c $< -o $@
 
@@ -204,11 +245,19 @@ $(HOST_BUILD_DIR)/preprocess.o: $(HOST_PREPROCESS_C_SRC) create_build_dirs
 
 # --- 4. 链接主机可执行文件 (使用 tapa g++) ---
 
+$(HOST_BUILD_DIR)/$(HOST_EXECUTABLE_BASE): $(HOST_OBJS) $(NICSLU_LIB_PATH) $(NICSLU_UTIL_LIB_PATH) $(abspath $(FPGA_KERNEL_SRCS)) $(SALUT_MEMORY_DEPS) | create_build_dirs
+	@echo "--- Linking host executable: $@ ---"
+	"$(TAPA_ROOT)/usr/bin/tapa" g++ -- -O3 -march=native -ffp-contract=off -DNDEBUG \
+		$(HOST_OBJS) \
+		"$(abspath $(FPGA_KERNEL_SRCS))" \
+		-o "$@" \
+		$(LDFLAGS)
+
 # 软件仿真版本 (依赖于 FPGA 源码，因为 tapa 会在链接时自动替换)
-$(HOST_BUILD_DIR)/$(HOST_EXECUTABLE_BASE)_sw_emu: $(HOST_OBJS) $(NICSLU_LIB_PATH) $(NICSLU_UTIL_LIB_PATH) $(abspath $(FPGA_KERNEL_SRCS)) create_build_dirs
+$(HOST_BUILD_DIR)/$(HOST_EXECUTABLE_BASE)_sw_emu: $(HOST_OBJS) $(NICSLU_LIB_PATH) $(NICSLU_UTIL_LIB_PATH) $(abspath $(FPGA_KERNEL_SRCS)) $(SALUT_MEMORY_DEPS) create_build_dirs
 	@echo "--- Linking software emulation executable: $@ ---"
 	# 使用 tapa g++ 编译主机代码和 FPGA 核源码 (用于软件仿真)
-	"$(TAPA_ROOT)/usr/bin/tapa" g++ \
+	"$(TAPA_ROOT)/usr/bin/tapa" g++ -- -O3 -march=native -ffp-contract=off -DNDEBUG \
 		$(HOST_OBJS) \
 		"$(abspath $(FPGA_KERNEL_SRCS))" \
 		-o "$@" \
@@ -229,14 +278,25 @@ $(HOST_BUILD_DIR)/$(HOST_EXECUTABLE_BASE)_sw_emu: $(HOST_OBJS) $(NICSLU_LIB_PATH
 
 
 # --- 5. 编译 .xclbin 文件 (Vitis 链接阶段) ---
-$(FPGA_BUILD_DIR)/$(FPGA_XCLBIN_NAME): create_build_dirs
+$(FPGA_BUILD_DIR)/$(FPGA_XCLBIN_NAME): $(FPGA_BUILD_DIR)/$(FPGA_XO_NAME) $(HBM_CONFIG_INI) $(SALUT_PRE_PLACE_SCRIPT) scripts/report_place_failure.tcl scripts/report_task_placement.tcl scripts/report_post_physopt.tcl scripts/report_route_audit.tcl | create_build_dirs
 	@echo "--- Running v++ command to link .xclbin ---"
-	"$(XILINX_VITIS_HLS)/bin/v++" -l \
-		--platform "$(PLATFORM)" \
+	"$(XILINX_VITIS)/bin/v++" -l \
+		--platform "$(PLATFORM_FILE)" \
 		--config "$(abspath $(HBM_CONFIG_INI))" \
+		--kernel_frequency "$(KERNEL_FREQUENCY_MHZ)" \
+		--save-temps \
+		--temp_dir "$(abspath $(FPGA_BUILD_DIR)/_x)" \
+		--log_dir "$(abspath $(FPGA_BUILD_DIR)/logs)" \
+		--report_dir "$(abspath $(FPGA_BUILD_DIR)/reports)" \
+		--vivado.prop "run.impl_1.STEPS.PLACE_DESIGN.TCL.PRE=$(abspath $(SALUT_PRE_PLACE_SCRIPT))" \
+		--vivado.prop "run.impl_1.STEPS.PLACE_DESIGN.ARGS.DIRECTIVE=$(SALUT_PLACE_DIRECTIVE)" \
+		--vivado.prop "run.impl_1.STEPS.PLACE_DESIGN.TCL.POST=$(abspath scripts/report_task_placement.tcl)" \
+		--vivado.prop "run.impl_1.STEPS.PHYS_OPT_DESIGN.TCL.POST=$(abspath scripts/report_post_physopt.tcl)" \
+		--vivado.prop "run.impl_1.STEPS.ROUTE_DESIGN.ARGS.DIRECTIVE=$(SALUT_ROUTE_DIRECTIVE)" \
+		--vivado.prop "run.impl_1.STEPS.ROUTE_DESIGN.TCL.POST=$(abspath scripts/report_route_audit.tcl)" \
 		"$(FPGA_BUILD_DIR)/$(FPGA_XO_NAME)" \
 		-o "$@" \
-		--target hw # 明确指定目标为硬件
+		--target hw
 
 # ==============================================================================
 # 清理目标
@@ -255,4 +315,4 @@ distclean: clean
 
 # ==============================================================================
 # Phony targets to ensure rules are always run
-.PHONY: all sw_emu hw_emu hw clean distclean
+.PHONY: all host sw_emu hw_emu hw board clean distclean

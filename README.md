@@ -64,3 +64,11 @@ xclbin, creates `emconfig.json`, and invokes the host program.
 
 This performs local hardware synthesis and linking. Generated hardware
 artifacts are excluded from version control.
+
+## Released bitstream
+
+A U280 xclbin of this source has been built: 16 PEs (8 PE groups x 2), 8 column fronts,
+8 LM lanes, 8 SM banks and 27 HBM channels, with the kernel clock at **150 MHz**. It is fully
+routed, meets all timing, and passes `pr_verify` against the original platform shell. The binary
+is distributed separately; [bitstream/README.md](bitstream/README.md) lists its hash and keeps the
+sign-off reports, and [hardware/README.md](hardware/README.md) describes the implementation flow.

@@ -116,6 +116,82 @@ void Symbolic_Matrix::predictLU(unsigned *ai, unsigned *ap, double *ax)
     build_predicted_L();
 }
 
+// Reuse the pattern already produced by NicsLU's threshold-pivoted numeric
+// preprocessing.  The previous fill_in() repeatedly set-unioned whole columns
+// and becomes superlinear in both time and temporary memory on Baumann and the
+// larger paper matrices.  In CSC mode NicsLU stores the strict-lower column in
+// its first (ulen) block and the strict-upper column in its second (llen)
+// block.  Reconstruct the same sorted column pattern in one linear pass.
+void Symbolic_Matrix::import_nicslu_factor_pattern(const SNicsLU *nicslu,
+                                                    unsigned *ai,
+                                                    unsigned *ap,
+                                                    double *ax)
+{
+    sym_c_ptr.assign(n + 1, 0);
+    sym_r_idx.clear();
+    val.clear();
+    l_col_ptr.assign(n, 0);
+
+    const size_t packed_stride = sizeof(real__t) + sizeof(int__t);
+    const unsigned char *lu =
+        static_cast<const unsigned char *>(nicslu->lu_array);
+    sym_r_idx.reserve(nicslu->l_nnz + nicslu->u_nnz - n);
+    val.reserve(nicslu->l_nnz + nicslu->u_nnz - n);
+
+    uint64_t lower_side_errors = 0;
+    uint64_t upper_side_errors = 0;
+    for (unsigned col = 0; col < n; ++col)
+    {
+        const unsigned lower_len = nicslu->ulen[col];
+        const unsigned upper_len = nicslu->llen[col];
+        const unsigned *lower = reinterpret_cast<const unsigned *>(
+            lu + nicslu->up[col]);
+        const unsigned *upper = reinterpret_cast<const unsigned *>(
+            lu + nicslu->up[col] + packed_stride * lower_len);
+
+        vector<unsigned> rows;
+        rows.reserve(lower_len + upper_len + 1);
+        for (unsigned p = 0; p < upper_len; ++p)
+        {
+            rows.push_back(upper[p]);
+            upper_side_errors += upper[p] >= col;
+        }
+        rows.push_back(col);
+        for (unsigned p = 0; p < lower_len; ++p)
+        {
+            rows.push_back(lower[p]);
+            lower_side_errors += lower[p] <= col;
+        }
+        sort(rows.begin(), rows.end());
+        rows.erase(unique(rows.begin(), rows.end()), rows.end());
+
+        vector<pair<unsigned, double>> input;
+        input.reserve(ap[col + 1] - ap[col]);
+        for (unsigned p = ap[col]; p < ap[col + 1]; ++p)
+            input.emplace_back(ai[p], ax[p]);
+        sort(input.begin(), input.end(),
+             [](const auto &a, const auto &b) { return a.first < b.first; });
+
+        size_t q = 0;
+        for (unsigned row : rows)
+        {
+            while (q < input.size() && input[q].first < row) ++q;
+            REAL value = 0.0f;
+            if (q < input.size() && input[q].first == row)
+                value = static_cast<REAL>(input[q].second);
+            if (row == col) l_col_ptr[col] = sym_r_idx.size();
+            sym_r_idx.push_back(row);
+            val.push_back(value);
+        }
+        sym_c_ptr[col + 1] = sym_r_idx.size();
+    }
+    nnz = sym_r_idx.size();
+    m_out << "Imported NicsLU factor pattern: " << nnz
+          << " nonzeros (L-side errors=" << lower_side_errors
+          << ", U-side errors=" << upper_side_errors << ")." << endl;
+    build_predicted_L();
+}
+
 // ======================================================
 // 新增函数：build_predicted_L()
 // 生成 L_ptr_pred / L_idx_pred:主机端可按列读取 L(:,k) 的行索引区间

@@ -13,6 +13,7 @@
 #include <fstream>
 #include <string>
 #include <sstream>
+#include <thread>
 
 // ============================================================================
 // 检查MTX文件头是否标记为对称矩阵
@@ -236,12 +237,83 @@ int expand_symmetric_matrix(uint__t n, double **ax, unsigned int **ai, unsigned 
     return 0;
 }
 
+// Add a scale-aware diagonal only when MC64 proves that the original pattern
+// is structurally singular.  The diagonal is implicit in the LU factors, so
+// this does not introduce an artificial dependency edge; it makes the
+// singular-matrix continuation explicit and numerically reproducible.
+static int regularize_missing_diagonal(uint__t n, double **ax,
+                                       unsigned int **ai,
+                                       unsigned int **ap)
+{
+    const uint__t old_nnz = (*ap)[n];
+    uint__t missing = 0;
+    for (uint__t col = 0; col < n; ++col)
+    {
+        bool found = false;
+        for (uint__t p = (*ap)[col]; p < (*ap)[col + 1]; ++p)
+            found = found || ((*ai)[p] == col);
+        if (!found) ++missing;
+    }
+    if (missing == 0) return 0;
+
+    double *new_ax = (double *)malloc(sizeof(double) * (old_nnz + missing));
+    unsigned int *new_ai =
+        (unsigned int *)malloc(sizeof(unsigned int) * (old_nnz + missing));
+    unsigned int *new_ap =
+        (unsigned int *)malloc(sizeof(unsigned int) * (n + 1));
+    if (new_ax == NULL || new_ai == NULL || new_ap == NULL)
+    {
+        free(new_ax); free(new_ai); free(new_ap);
+        return -1;
+    }
+
+    // sqrt(FLT_EPSILON) is a conventional single-precision perturbation
+    // scale.  Use the column infinity norm, with one as the lower scale bound.
+    constexpr double kSqrtFloatEpsilon = 3.4526698300124393e-4;
+    uint__t out = 0;
+    new_ap[0] = 0;
+    for (uint__t col = 0; col < n; ++col)
+    {
+        bool found = false;
+        double col_scale = 1.0;
+        for (uint__t p = (*ap)[col]; p < (*ap)[col + 1]; ++p)
+        {
+            found = found || ((*ai)[p] == col);
+            col_scale = std::max(col_scale, std::fabs((*ax)[p]));
+        }
+        bool inserted = found;
+        for (uint__t p = (*ap)[col]; p < (*ap)[col + 1]; ++p)
+        {
+            if (!inserted && (*ai)[p] > col)
+            {
+                new_ai[out] = col;
+                new_ax[out++] = kSqrtFloatEpsilon * col_scale;
+                inserted = true;
+            }
+            new_ai[out] = (*ai)[p];
+            new_ax[out++] = (*ax)[p];
+        }
+        if (!inserted)
+        {
+            new_ai[out] = col;
+            new_ax[out++] = kSqrtFloatEpsilon * col_scale;
+        }
+        new_ap[col + 1] = out;
+    }
+
+    free(*ax); free(*ai); free(*ap);
+    *ax = new_ax; *ai = new_ai; *ap = new_ap;
+    printf("[Regularization] Added %u missing diagonal entries; nnz=%u\n",
+           (uint32_t)missing, (uint32_t)out);
+    return 0;
+}
+
 int my_DumpA(SNicsLU *nicslu, double **ax, unsigned int **ai, unsigned int **ap)
 {
     uint__t n, nnz;
     double *ax0;
     unsigned int *ai0, *ap0;
-    uint__t *rowperm, *pinv, *piv, oldrow, start, end;
+    uint__t *rowperm, *pinv, oldrow, start, end;
     uint__t i, j, p;
 
     if (NULL == nicslu || NULL == ax || NULL == ai || NULL == ap)
@@ -278,8 +350,6 @@ int my_DumpA(SNicsLU *nicslu, double **ax, unsigned int **ai, unsigned int **ap)
     }
     rowperm = nicslu->row_perm;/*row_perm[i]=j-->row i in the permuted matrix is row j in the original matrix*/
     pinv = (uint__t *)nicslu->pivot_inv;/*pivot_inv[i]=j-->column i is the jth pivot column*/
-    piv = (uint__t *)nicslu->pivot;
-
     // 检查rowperm是否有效
     if (rowperm == NULL)
     {
@@ -287,11 +357,11 @@ int my_DumpA(SNicsLU *nicslu, double **ax, unsigned int **ai, unsigned int **ap)
         goto FAIL;
     }
 
-    //generate pivot and pivot_inv for function NicsLU_DumpA
+    // NicsLU_Factorize has already selected a numerically safe static pivot
+    // order.  Preserve pivot_inv here: resetting it to the identity silently
+    // discarded that order and can put numerical zeros back on the diagonal.
     for (i = 0; i < n; ++i)
     {
-        pinv[i] = i;
-        piv[i] = i;
         // 如果rowperm未初始化，初始化为单位排列
         if (rowperm[i] >= n)
         {
@@ -486,7 +556,7 @@ int preprocess(char *matrixName, SNicsLU *nicslu, double **ax, unsigned int **ai
     // 使用chrono精确计时预处理
     {
         auto preprocess_start = std::chrono::high_resolution_clock::now();
-        NicsLU_Analyze(nicslu);
+        ret = NicsLU_Analyze(nicslu);
         auto preprocess_end = std::chrono::high_resolution_clock::now();
         
         double chrono_time = std::chrono::duration<double, std::milli>(preprocess_end - preprocess_start).count();
@@ -494,6 +564,71 @@ int preprocess(char *matrixName, SNicsLU *nicslu, double **ax, unsigned int **ai
         printf("Preprocessing time (NicsLU_Analyze only): %f ms (chrono)\n", chrono_time);
         fflush(stdout);
     }
+
+    if (ret == NICSLU_MATRIX_STRUCTURAL_SINGULAR)
+    {
+        printf("[Regularization] Structural singularity detected; "
+               "retrying analysis with a scaled diagonal.\n");
+        if (regularize_missing_diagonal(*n, ax, ai, ap) != 0)
+        {
+            printf("[Error] Failed to regularize structurally singular matrix\n");
+            if (n) { free(n); n = NULL; }
+            if (nnz) { free(nnz); nnz = NULL; }
+            return -1;
+        }
+        *nnz = (*ap)[*n];
+        ret = NicsLU_CreateMatrix(nicslu, *n, *nnz, *ax, *ai, *ap);
+        if (ret == NICS_OK) ret = NicsLU_Analyze(nicslu);
+    }
+    if (ret != NICS_OK)
+    {
+        printf("[Error] NicsLU_Analyze failed: %d\n", ret);
+        if (n) { free(n); n = NULL; }
+        if (nnz) { free(nnz); nnz = NULL; }
+        return -1;
+    }
+
+    // SALUT performs repeated numerical factorization after preprocessing.
+    // Use one CPU factorization to freeze NicsLU's threshold-pivoted column
+    // order; subsequent CPU/FPGA runs then use that order as a static graph.
+    {
+        auto pivot_start = std::chrono::high_resolution_clock::now();
+        bool used_parallel = false;
+        if (*n >= 100000u)
+        {
+            const int scheduler_ret = NicsLU_CreateScheduler(nicslu);
+            const unsigned int available = std::max<unsigned int>(
+                2u, std::thread::hardware_concurrency());
+            const unsigned int threads = std::min<unsigned int>(32u, available);
+            const int thread_ret = scheduler_ret >= 0
+                ? NicsLU_CreateThreads(nicslu, threads, TRUE) : scheduler_ret;
+            if (scheduler_ret >= 0 && thread_ret == NICS_OK)
+            {
+                NicsLU_BindThreads(nicslu, FALSE);
+                ret = NicsLU_Factorize_MT(nicslu);
+                used_parallel = (ret == NICS_OK);
+                printf("Static pivot selector: NicsLU_Factorize_MT, threads=%u, "
+                       "scheduler suggestion=%d\n", threads, scheduler_ret);
+            }
+        }
+        if (!used_parallel) ret = NicsLU_Factorize(nicslu);
+        auto pivot_end = std::chrono::high_resolution_clock::now();
+        double pivot_time = std::chrono::duration<double, std::milli>(
+            pivot_end - pivot_start).count();
+        printf("Static pivot selection time (NicsLU_Factorize): %f ms (chrono)\n",
+               pivot_time);
+        fflush(stdout);
+    }
+    if (ret != NICS_OK)
+    {
+        printf("[Error] NicsLU_Factorize failed while selecting static pivots: %d\n", ret);
+        if (n) { free(n); n = NULL; }
+        if (nnz) { free(nnz); nnz = NULL; }
+        return -1;
+    }
+    printf("[Static Pattern] NicsLU L nnz=%zu, U nnz=%zu, total=%zu\n",
+           nicslu->l_nnz, nicslu->u_nnz, nicslu->lu_nnz);
+    fflush(stdout);
 
     printf("[DEBUG] Before my_DumpA: nicslu->n=%u, nicslu->nnz=%u\n", 
            (uint32_t)nicslu->n, (uint32_t)nicslu->nnz);
